@@ -80,6 +80,7 @@ public class Indexer {
 	
 	public static void parseDocs(String trecTextFile, IndexWriter writer) throws IOException {
 		FieldType storeTermVectors = new FieldType(TextField.TYPE_STORED);
+		storeTermVectors.setStoreTermVectors(true);
 
 		String data = new String(Files.readAllBytes(Paths.get(trecTextFile)));
 		data = data.replaceAll("(&(?!amp;))", "&amp;" ); 
@@ -107,10 +108,10 @@ public class Indexer {
 					luceneDoc.add(new TextField(fieldName, fieldContents, Field.Store.YES));
 				}*/
 				Node docno = doc.getElementsByTagName("DOCNO").item(0);
-				luceneDoc.add(new StringField("docno", docno.getTextContent(), Field.Store.YES));				
+				luceneDoc.add(new StringField("docno", docno.getTextContent().trim(), Field.Store.YES));				
 				
 				Node text = doc.getElementsByTagName("TEXT").item(0);
-				luceneDoc.add(new Field("text", text.getTextContent(), storeTermVectors));
+				luceneDoc.add(new Field("text", text.getTextContent().trim(), storeTermVectors));
 				
 				Analyzer analyzer = writer.getAnalyzer();
 				TokenStream tokens = analyzer.tokenStream("text", text.getTextContent());

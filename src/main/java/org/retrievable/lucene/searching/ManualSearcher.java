@@ -73,7 +73,7 @@ public class ManualSearcher {
 					Hits searchHits = (new Search()).search(index, query);
 					List<Hit> results = searchHits.getRankedHits();
 					
-					for (int i = 0; i < results.size(); i++) {
+					for (int i = 0; i < Math.min(results.size(), 1000); i++) {
 						Hit result = results.get(i);
 						System.out.println(query.getNumber() + " Q0 " + index.document(result.id).getField("docno").stringValue() + " " + (i + 1) + " "  + result.score + " test");
 					}

@@ -47,10 +47,10 @@ public class Hits implements Iterable<Hit> {
 		Collections.sort(rankedHits, new Comparator<Hit>() {
 			public int compare(Hit h1, Hit h2) {
 				if (h1.score > h2.score) {
-					return 1;
+					return -1;
 				}
 				if (h1.score < h2.score) {
-					return -1;
+					return 1;
 				}
 				return 0;
 			}
