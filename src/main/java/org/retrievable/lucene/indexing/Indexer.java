@@ -16,9 +16,13 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -75,6 +79,8 @@ public class Indexer {
 	}
 	
 	public static void parseDocs(String trecTextFile, IndexWriter writer) throws IOException {
+		FieldType storeTermVectors = new FieldType(TextField.TYPE_STORED);
+
 		String data = new String(Files.readAllBytes(Paths.get(trecTextFile)));
 		data = data.replaceAll("(&(?!amp;))", "&amp;" ); 
 		
@@ -92,14 +98,32 @@ public class Indexer {
 
 				Document luceneDoc = new Document();
 
-				NodeList fields = doc.getChildNodes();
+				/*NodeList fields = doc.getChildNodes();
 				for (int j = 0; j < fields.getLength(); j++) {
 					Node field = fields.item(j);
 					String fieldName = field.getNodeName().toLowerCase();
 					String fieldContents = field.getTextContent();
 					
 					luceneDoc.add(new TextField(fieldName, fieldContents, Field.Store.YES));
-				}
+				}*/
+				Node docno = doc.getElementsByTagName("DOCNO").item(0);
+				luceneDoc.add(new StringField("docno", docno.getTextContent(), Field.Store.YES));				
+				
+				Node text = doc.getElementsByTagName("TEXT").item(0);
+				luceneDoc.add(new Field("text", text.getTextContent(), storeTermVectors));
+				
+				Analyzer analyzer = writer.getAnalyzer();
+				TokenStream tokens = analyzer.tokenStream("text", text.getTextContent());
+				tokens.reset();                            
+	            int docLength = 0;                            
+	            while (tokens.incrementToken()) {
+	                docLength++;
+	            }
+	            tokens.end();
+	            tokens.close();
+	            
+				luceneDoc.add(new StoredField("length", docLength));
+				
 				writer.addDocument(luceneDoc);
 			}
 		} catch (ParserConfigurationException e) {
