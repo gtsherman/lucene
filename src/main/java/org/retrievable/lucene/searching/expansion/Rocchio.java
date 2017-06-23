@@ -5,12 +5,13 @@ import java.io.IOException;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreDoc;
 import org.retrievable.lucene.searching.Searcher;
-import org.retrievable.lucene.searching.support.FeatureVector;
 
 import edu.gslis.lucene.main.config.QueryConfig;
+import edu.gslis.textrepresentation.FeatureVector;
 
 public class Rocchio {
 	
@@ -41,8 +42,12 @@ public class Rocchio {
 				docText.append(chunk);
 			}
 
-			// Get the document tokens and add to the summed term vector
-			parseText(docText.toString(), summedTermVec);
+			// Get the document tokens and add to the doc vector
+			FeatureVector docVec = new FeatureVector(null);
+			parseText(docText.toString(), docVec);
+			
+			// Compute the BM25 weights
+			computeBM25Weights(index, docVec, summedTermVec);
 		}
 		
 		// Multiply the summed term vector by beta / |Dr|
@@ -52,17 +57,20 @@ public class Rocchio {
 		}
 		
 		// Create a query vector and scale by alpha
+		FeatureVector rawQueryVec = new FeatureVector(null);
+		parseText(query.getText(), rawQueryVec);
+		
 		FeatureVector summedQueryVec = new FeatureVector(null);
-		parseText(query.getText(), summedQueryVec);
-
+		computeBM25Weights(index, rawQueryVec, summedQueryVec);
+		
 		FeatureVector queryTermVec = new FeatureVector(null);
-		for (String term : summedQueryVec) {
+		for (String term : rawQueryVec) {
 			queryTermVec.addTerm(term, summedQueryVec.getFeatureWeight(term) * alpha);
 		}
 		
 		// Combine query and rel doc vectors
 		for (String term : queryTermVec) {
-			relDocTermVec.addTerm(term, relDocTermVec.getFeatureWeight(term));
+			relDocTermVec.addTerm(term, queryTermVec.getFeatureWeight(term));
 		}
 		
 		// Get top terms
@@ -86,6 +94,20 @@ public class Rocchio {
 			vector.addTerm(token);
 		}
 		analyzer.close();	
+	}
+	
+	private void computeBM25Weights(IndexSearcher index, FeatureVector docVec, FeatureVector summedTermVec) throws IOException {
+		for (String term : docVec) {
+			int docCount = index.getIndexReader().numDocs();
+			int docOccur = index.getIndexReader().docFreq(new Term("text", term));
+			double avgDocLen = index.getIndexReader().getSumTotalTermFreq("text") / docCount;
+			
+			double idf = Math.log( (docCount + 1) / (docOccur + 0.5) ); // following Indri
+			double tf = docVec.getFeatureWeight(term);
+			
+			double weight = (idf * 1.2 * tf) / (tf + 1.2 * (1 - 0.75 + 0.75 * docVec.getLength() / avgDocLen));
+			summedTermVec.addTerm(term, weight);
+		}
 	}
 
 }
