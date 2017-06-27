@@ -17,6 +17,8 @@ public class Rocchio {
 	
 	private double alpha;
 	private double beta;
+	private double k1;
+	private double b;
 	
 	/**
 	 * Default parameter values taken from:
@@ -27,8 +29,14 @@ public class Rocchio {
 	}
 	
 	public Rocchio(double alpha, double beta) {
+		this(alpha, beta, 1.2, 0.75);
+	}
+	
+	public Rocchio(double alpha, double beta, double k1, double b) {
 		this.alpha = alpha;
 		this.beta = beta;
+		this.k1 = k1;
+		this.b = b;
 	}
 	
 	public void expandQuery(IndexSearcher index, QueryConfig query, int fbDocs, int fbTerms) throws IOException {
@@ -105,7 +113,7 @@ public class Rocchio {
 			double idf = Math.log( (docCount + 1) / (docOccur + 0.5) ); // following Indri
 			double tf = docVec.getFeatureWeight(term);
 			
-			double weight = (idf * 1.2 * tf) / (tf + 1.2 * (1 - 0.75 + 0.75 * docVec.getLength() / avgDocLen));
+			double weight = (idf * k1 * tf) / (tf + k1 * (1 - b + b * docVec.getLength() / avgDocLen));
 			summedTermVec.addTerm(term, weight);
 		}
 	}
